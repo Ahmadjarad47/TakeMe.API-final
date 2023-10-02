@@ -183,12 +183,12 @@ namespace TakeMe.Controllers
         [HttpPut("update-account")]
         public async Task<ActionResult> UpdateDetais(UpdateAccountDTO dTO)
         {
-            var check = await context.AppUsers.AsNoTracking().FirstOrDefaultAsync(m=>m.Email==dTO.Email);
-            if (check is null)
+            var checke = await context.AppUsers.AsNoTracking().FirstOrDefaultAsync(m=>m.Email==dTO.Email);
+            if (checke is null)
             {
                 return BadRequest(new BaseComonentResponse(400, $"Invalid Reqruest this Email {dTO.Email} not Registerd"));
             }
-            if (!PasswordHasher.VerifyPassword(dTO.password, check.PasswordHash))
+            if (!PasswordHasher.VerifyPassword(dTO.password, checke.PasswordHash))
             {
                 return BadRequest(new BaseComonentResponse(400, "password not matched !"));
             }
@@ -197,7 +197,7 @@ namespace TakeMe.Controllers
                 return BadRequest(new BaseComonentResponse(400, $"Invalid Reqruest this userName {dTO.UserName} is already Registerd"));
             }
             //
-            AppUsers checks = check;
+            AppUsers checks = checke;
                 checks = new()
                 {
                     Email = dTO.Email,
@@ -208,7 +208,7 @@ namespace TakeMe.Controllers
                     NormalizedUserName=dTO.UserName.ToUpper(),  
                     PasswordHash=PasswordHasher.HashPassword(dTO.password)
                 };
-            token.DeleteUser(check.Id);
+            token.DeleteUser(checke.Id);
             await context.AddAsync(checks);
             await context.SaveChangesAsync();
                 return Ok(new BaseComonentResponse(200));
