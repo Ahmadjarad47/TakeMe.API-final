@@ -38,23 +38,22 @@ namespace TakeMe.Controllers
            
             return Ok(await context.AppUsers.AsNoTracking().ToListAsync());
         }
-        [HttpPut("Login")]
+        [HttpPost("Login")]
         public async Task<IActionResult> Login(AppUsersDTO usersDTO)
         {
             AppUsers user = await context.AppUsers.AsNoTracking()
-                .FirstOrDefaultAsync(e => e.Email == usersDTO.Email);
-            // user is null ?
+                 .FirstOrDefaultAsync(e => e.Email == usersDTO.Email);
+
             if (user is null) return Unauthorized(new
                 BaseComonentResponse(401, "this email not found !"));
-            // hassing password
-            if (!PasswordHasher.VerifyPassword(usersDTO.password, user.PasswordHash))
+            var result = await signInManager
+                .CheckPasswordSignInAsync(user, usersDTO.password, true);
+            if (result is null || result.Succeeded is false)
             {
-                return BadRequest(new BaseComonentResponse(400,"password not matched !"));
+                return Unauthorized(new BaseComonentResponse(401, "something went worng !"));
             }
-
             user.refreshToken = token.CreateRefreshToken();
             user.refreshTokenTime = DateTime.Now.AddDays(10);
-             context.AppUsers.Update(user);
             await context.SaveChangesAsync();
             return Ok(new TokenAPIDTO(AccessToken: token.GetAndCreateToken(token: user), user.UserName, user.Email, 200));
         }
@@ -68,14 +67,16 @@ namespace TakeMe.Controllers
             AppUsers app = new AppUsers
             {
                 Email = registerDTO.Email,
-                UserName = registerDTO.Email,
-                NormalizedUserName = registerDTO.Email.ToUpper(),
-                NormalizedEmail = registerDTO.Email.ToUpper(),
-                PasswordHash=PasswordHasher.HashPassword(registerDTO.password),
+                UserName=registerDTO.Email
             };
-            await token.AddUserAsync(app);
-           /* await context.AppUsers.AddAsync(app);
-            await context.SaveChangesAsync();*/
+            IdentityResult result = await this.userManager.CreateAsync(app, registerDTO.password);
+            if (result.Succeeded == false)
+            {
+                string message = result.Errors.ToList()[0].Description.ToString();
+
+
+                return Unauthorized(new BaseComonentResponse(401, message));
+            }
             return Ok(new TokenAPIDTO(AccessToken: token.GetAndCreateToken(token: app), app.UserName, app.Email,200));
         }
 
@@ -188,15 +189,12 @@ namespace TakeMe.Controllers
             {
                 return BadRequest(new BaseComonentResponse(400, $"Invalid Reqruest this Email {dTO.Email} not Registerd"));
             }
-            if (!PasswordHasher.VerifyPassword(dTO.password, checke.PasswordHash))
-            {
-                return BadRequest(new BaseComonentResponse(400, "password not matched !"));
-            }
+          
             if (await CheckUserName(dTO.UserName))
             {
                 return BadRequest(new BaseComonentResponse(400, $"Invalid Reqruest this userName {dTO.UserName} is already Registerd"));
             }
-            //
+            
             AppUsers checks = checke;
                 checks = new()
                 {
@@ -206,10 +204,10 @@ namespace TakeMe.Controllers
                     CollageName= dTO.CollageName,
                     NormalizedEmail=dTO.Email.ToUpper(),
                     NormalizedUserName=dTO.UserName.ToUpper(),  
-                    PasswordHash=PasswordHasher.HashPassword(dTO.password)
                 };
+
             token.DeleteUser(checke.Id);
-            await context.AddAsync(checks);
+          await userManager.CreateAsync(checks,dTO.password);
             await context.SaveChangesAsync();
                 return Ok(new BaseComonentResponse(200));
         }

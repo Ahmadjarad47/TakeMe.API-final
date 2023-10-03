@@ -188,13 +188,15 @@ namespace TakeMe.Controllers
 
 
         
-        private async void DeleteRegisterQr()
+        private  void DeleteRegisterQr()
         {
             IEnumerable<QRCodeCheck> forms = from item in context.QRCodeChecks.ToList() select item;
             foreach (var item in forms)
             {
-               await work.IQrCodeReader.DeleteAsync(item.Id);
+                context.QRCodeChecks.Remove(item);
+
             }
+             context.SaveChanges();
         }
 
 
